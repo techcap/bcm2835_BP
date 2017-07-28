@@ -20,7 +20,7 @@
 #include <linux/spi/spidev.h> /*Add for BananaPro by LeMaker Team*/
 #include <sys/ioctl.h>  /*Add for BananaPro by LeMaker Team*/
 #include <sys/time.h>   /*Add for BananaPro by LeMaker Team*/
- 
+
 #include "bcm2835.h"
 
 // This define enables a little test program (by default a blinking output on pin RPI_GPIO_PIN_11)
@@ -60,7 +60,7 @@ static int32_t BpiPin[GPIONUM] =
 	 245,272,   //BCM GPIO24,25
 	 37, 274,   //BCM GPIO26,27
 };
-static uint8_t GpioDetectType[32] = {0x0};
+static uint8_t GpioDetectType[32] = { 0x0 };
 static uint32_t ReadRisingCnt = 0;
 static uint32_t ReadFallCnt = 0;
 static uint8_t RisingModeValue = 1;
@@ -68,25 +68,25 @@ static uint8_t FallModeValue = 0;
 
 union i2c_smbus_data
 {
-  uint8_t  byte ;
-  uint16_t word ;
-  uint8_t  block [I2C_SMBUS_BLOCK_MAX + 2] ;	// block [0] is used for length + one more for PEC
-} ;
+	uint8_t  byte;
+	uint16_t word;
+	uint8_t  block[I2C_SMBUS_BLOCK_MAX + 2];	// block [0] is used for length + one more for PEC
+};
 
 struct i2c_smbus_ioctl_data
 {
-  char read_write ;
-  uint8_t command ;
-  int size ;
-  union i2c_smbus_data *data ;
-} ;
+	char read_write;
+	uint8_t command;
+	int size;
+	union i2c_smbus_data *data;
+};
 /*end 2015.01.05*/
 
 /*Add for BananaPro by LeMaker Team*/
-volatile uint32_t *sunxi_gpio  =  (volatile uint32_t *)MAP_FAILED;
+volatile uint32_t *sunxi_gpio = (volatile uint32_t *)MAP_FAILED;
 volatile uint32_t *sunxi_pwm = (volatile uint32_t *)MAP_FAILED;
-volatile uint32_t *sunxi_spi0  = (volatile uint32_t *)MAP_FAILED;
-volatile uint32_t *sunxi_iic2  = (volatile uint32_t *)MAP_FAILED;
+volatile uint32_t *sunxi_spi0 = (volatile uint32_t *)MAP_FAILED;
+volatile uint32_t *sunxi_iic2 = (volatile uint32_t *)MAP_FAILED;
 
 /*end 2015.01.05 */
 
@@ -112,94 +112,94 @@ static int spi_fd = -1;
 // Function to return the pointers to the hardware register bases
 uint32_t* bcm2835_regbase(uint8_t regbase)
 {
-    switch (regbase)
-    {
+	switch (regbase)
+	{
 	case BCM2835_REGBASE_GPIO:
-	    return (uint32_t *)sunxi_gpio;
+		return (uint32_t *)sunxi_gpio;
 	case BCM2835_REGBASE_PWM:
-	    return (uint32_t *)sunxi_pwm;
+		return (uint32_t *)sunxi_pwm;
 	case BCM2835_REGBASE_SPI0:
-	    return (uint32_t *)sunxi_spi0;
+		return (uint32_t *)sunxi_spi0;
 	case BCM2835_REGBASE_IIC2:
-		 return (uint32_t *)sunxi_iic2;
+		return (uint32_t *)sunxi_iic2;
 
-    }
-    return (uint32_t *)MAP_FAILED;
+	}
+	return (uint32_t *)MAP_FAILED;
 }
 
 void  bcm2835_set_debug(uint8_t d)
 {
-    debug = d;
+	debug = d;
 }
 
 // safe read from peripheral
 uint32_t bcm2835_peri_read(volatile uint32_t* paddr)
 {
-    if (debug)
-    {
-        printf("bcm2835_peri_read  paddr %08X\n", (unsigned) paddr);
-	return 0;
-    }
-    else
-    {
-	// Make sure we dont return the _last_ read which might get lost
-	// if subsequent code changes to a different peripheral
-	uint32_t ret = *paddr;
-	*paddr; // Read without assigneing to an unused variable
-	return ret;
-    }
+	if (debug)
+	{
+		printf("bcm2835_peri_read  paddr %08X\n", (unsigned)paddr);
+		return 0;
+	}
+	else
+	{
+		// Make sure we dont return the _last_ read which might get lost
+		// if subsequent code changes to a different peripheral
+		uint32_t ret = *paddr;
+		*paddr; // Read without assigneing to an unused variable
+		return ret;
+	}
 }
 
 // read from peripheral without the read barrier
 uint32_t bcm2835_peri_read_nb(volatile uint32_t* paddr)
 {
-    if (debug)
-    {
-	printf("bcm2835_peri_read_nb  paddr %08X\n", (unsigned) paddr);
-	return 0;
-    }
-    else
-    {
-	return *paddr;
-    }
+	if (debug)
+	{
+		printf("bcm2835_peri_read_nb  paddr %08X\n", (unsigned)paddr);
+		return 0;
+	}
+	else
+	{
+		return *paddr;
+	}
 }
 
 // safe write to peripheral
 void bcm2835_peri_write(volatile uint32_t* paddr, uint32_t value)
 {
-  if (debug)
-    {
-	printf("bcm2835_peri_write paddr %08X, value %08X\n", (unsigned) paddr, value);
-    }
-  else
-    {
-	// Make sure we don't rely on the first write, which may get
-	// lost if the previous access was to a different peripheral.
-	*paddr = value;
-	*paddr = value;
-    }
+	if (debug)
+	{
+		printf("bcm2835_peri_write paddr %08X, value %08X\n", (unsigned)paddr, value);
+	}
+	else
+	{
+		// Make sure we don't rely on the first write, which may get
+		// lost if the previous access was to a different peripheral.
+		*paddr = value;
+		*paddr = value;
+	}
 }
 
 // write to peripheral without the write barrier
 void bcm2835_peri_write_nb(volatile uint32_t* paddr, uint32_t value)
 {
-    if (debug)
-    {
-	printf("bcm2835_peri_write_nb paddr %08X, value %08X\n",
-               (unsigned) paddr, value);
-    }
-    else
-    {
-	*paddr = value;
-    }
+	if (debug)
+	{
+		printf("bcm2835_peri_write_nb paddr %08X, value %08X\n",
+			(unsigned)paddr, value);
+	}
+	else
+	{
+		*paddr = value;
+	}
 }
 
 // Set/clear only the bits in value covered by the mask
 void bcm2835_peri_set_bits(volatile uint32_t* paddr, uint32_t value, uint32_t mask)
 {
-    uint32_t v = bcm2835_peri_read(paddr);
-    v = (v & ~mask) | (value & mask);
-    bcm2835_peri_write(paddr, v);
+	uint32_t v = bcm2835_peri_read(paddr);
+	v = (v & ~mask) | (value & mask);
+	bcm2835_peri_write(paddr, v);
 }
 
 //
@@ -227,15 +227,15 @@ void bcm2835_peri_set_bits(volatile uint32_t* paddr, uint32_t value, uint32_t ma
 /*Modify for BananaPro by LeMaker Team*/
 void bcm2835_gpio_fsel(uint8_t pin, uint8_t mode)
 {
-    // Function selects are 10 pins per 32 bit word, 3 bits per pin
+	// Function selects are 10 pins per 32 bit word, 3 bits per pin
 	int32_t bpipin = BpiPin[pin];
-	volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_CFG_OFFSET + (bpipin/32) * 0x24 +  ((bpipin%32)/8) *0x04) >> 2);
+	volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_CFG_OFFSET + (bpipin / 32) * 0x24 + ((bpipin % 32) / 8) * 0x04) >> 2);
 	uint8_t   shift = (bpipin % 8) * 4;
 	uint32_t  mask = BCM2835_GPIO_FSEL_MASK << shift;
 	uint32_t  value = mode << shift;
-	if(debug)printf("bcm2835_gpio_fsel:before write:0x%x.\n",bcm2835_peri_read(paddr));
+	if (debug)printf("bcm2835_gpio_fsel:before write:0x%x.\n", bcm2835_peri_read(paddr));
 	bcm2835_peri_set_bits(paddr, value, mask);
-	if(debug)printf("bcm2835_gpio_fsel:after write:0x%x.\n",bcm2835_peri_read(paddr));
+	if (debug)printf("bcm2835_gpio_fsel:after write:0x%x.\n", bcm2835_peri_read(paddr));
 
 }
 
@@ -246,7 +246,7 @@ void bcm2835_gpio_set(uint8_t pin)
 
 	int32_t bpipin = BpiPin[pin];
 
-	volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET +(bpipin/32) * 0x24) >> 2);
+	volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET + (bpipin / 32) * 0x24) >> 2);
 	uint8_t   shift = bpipin % 32;
 	uint32_t  mask = 0x01 << shift;
 	uint32_t  value = 1 << shift;
@@ -259,7 +259,7 @@ void bcm2835_gpio_set(uint8_t pin)
 void bcm2835_gpio_clr(uint8_t pin)
 {
 	int32_t bpipin = BpiPin[pin];
-	volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET +(bpipin/32) * 0x24) >> 2);
+	volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET + (bpipin / 32) * 0x24) >> 2);
 	uint8_t   shift = bpipin % 32;
 	uint32_t  mask = 0x01 << shift;
 	uint32_t  value = 0 << shift;
@@ -271,19 +271,19 @@ void bcm2835_gpio_clr(uint8_t pin)
 void bcm2835_gpio_set_multi(uint32_t mask)
 {
 	uint8_t i = 0;
-	for(i;i < GPIONUM;i++){
-		if(mask & 0x01){
-			if(BpiPin[i] > 0){
-			int32_t bpipin = BpiPin[i];
+	for (i; i < GPIONUM; i++) {
+		if (mask & 0x01) {
+			if (BpiPin[i] > 0) {
+				int32_t bpipin = BpiPin[i];
 
-			volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET +(bpipin/32) * 0x24) >> 2);
-			uint8_t   shift = bpipin % 32;
-			uint32_t  mask_bit = 0x01 << shift;
-			uint32_t  value = 1 << shift;
-			bcm2835_peri_set_bits(paddr, value, mask_bit);
+				volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET + (bpipin / 32) * 0x24) >> 2);
+				uint8_t   shift = bpipin % 32;
+				uint32_t  mask_bit = 0x01 << shift;
+				uint32_t  value = 1 << shift;
+				bcm2835_peri_set_bits(paddr, value, mask_bit);
 			}
 		}
-		mask = mask >>1;
+		mask = mask >> 1;
 	}
 }
 
@@ -292,19 +292,19 @@ void bcm2835_gpio_set_multi(uint32_t mask)
 void bcm2835_gpio_clr_multi(uint32_t mask)
 {
 	uint8_t i = 0;
-	for(i;i < GPIONUM;i++){
-		if(mask & 0x01){
-			if(BpiPin[i] > 0){
-			int32_t bpipin = BpiPin[i];
-			//printf("pin = %d.\n",bpipin);
-			volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET +(bpipin/32) * 0x24) >> 2);
-			uint8_t   shift = bpipin % 32;
-			uint32_t  mask_bit = 0x01 << shift;
-			uint32_t  value = 0 << shift;
-			bcm2835_peri_set_bits(paddr, value, mask_bit);
+	for (i; i < GPIONUM; i++) {
+		if (mask & 0x01) {
+			if (BpiPin[i] > 0) {
+				int32_t bpipin = BpiPin[i];
+				//printf("pin = %d.\n",bpipin);
+				volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET + (bpipin / 32) * 0x24) >> 2);
+				uint8_t   shift = bpipin % 32;
+				uint32_t  mask_bit = 0x01 << shift;
+				uint32_t  value = 0 << shift;
+				bcm2835_peri_set_bits(paddr, value, mask_bit);
 			}
 		}
-		mask = mask >>1;
+		mask = mask >> 1;
 	}
 }
 
@@ -312,9 +312,9 @@ void bcm2835_gpio_clr_multi(uint32_t mask)
 // Read input pin
 uint8_t bcm2835_gpio_lev(uint8_t pin)
 {
-	if(BpiPin[pin] > 0){
+	if (BpiPin[pin] > 0) {
 		int32_t bpipin = BpiPin[pin];
-		volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET +(bpipin/32) * 0x24) >> 2);
+		volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET + (bpipin / 32) * 0x24) >> 2);
 		uint8_t shift = bpipin % 32;
 		uint32_t value = bcm2835_peri_read(paddr);
 		return (value & (1 << shift)) ? HIGH : LOW;
@@ -326,31 +326,33 @@ uint8_t bcm2835_gpio_lev(uint8_t pin)
 // Sigh cant support interrupts yet
 uint8_t bcm2835_gpio_eds(uint8_t pin)
 {
-	uint8_t value,rising,i = 0;
-	if(GpioDetectType[pin] == 0x01){//low detect
+	uint8_t value, rising, i = 0;
+	if (GpioDetectType[pin] == 0x01) {//low detect
 		value = bcm2835_gpio_lev(pin);
-		if(value) 
+		if (value)
 			return 0x00;
-		else 
+		else
 			return 0x01;
-	} else if(GpioDetectType[pin] == 0x02){//high detect
+	}
+	else if (GpioDetectType[pin] == 0x02) {//high detect
 		value = bcm2835_gpio_lev(pin);
-		if(value) 
+		if (value)
 			return 0x01;
-		else 
+		else
 			return 0x00;
-	} else if(GpioDetectType[pin] == 0x04){//Rising edge detect
-		if(ReadRisingCnt== 0){
+	}
+	else if (GpioDetectType[pin] == 0x04) {//Rising edge detect
+		if (ReadRisingCnt == 0) {
 			RisingModeValue = bcm2835_gpio_lev(pin);
 			ReadRisingCnt = 1;
 		}
-		while(i++ < 200)
+		while (i++ < 200)
 		{
 			value = bcm2835_gpio_lev(pin);
-			if(value == 0) {
+			if (value == 0) {
 				RisingModeValue = 0;
 			}
-			if((value == 1) && (RisingModeValue == 0)){	
+			if ((value == 1) && (RisingModeValue == 0)) {
 				ReadRisingCnt = 0;
 				RisingModeValue = 1;
 				//printf("Rising edge detect.\n");
@@ -358,18 +360,19 @@ uint8_t bcm2835_gpio_eds(uint8_t pin)
 			}
 		}
 		return 0x00;
-	}else if(GpioDetectType[pin] == 0x08){//fall edge detect
-		if(ReadFallCnt== 0){
+	}
+	else if (GpioDetectType[pin] == 0x08) {//fall edge detect
+		if (ReadFallCnt == 0) {
 			FallModeValue = bcm2835_gpio_lev(pin);
 			ReadFallCnt = 1;
 		}
-		while(i++ < 200)
+		while (i++ < 200)
 		{
 			value = bcm2835_gpio_lev(pin);
-			if(value == 1) {
+			if (value == 1) {
 				FallModeValue = 1;
 			}
-			if((value == 0) && (FallModeValue == 1)){	
+			if ((value == 0) && (FallModeValue == 1)) {
 				ReadFallCnt = 0;
 				//printf("Falling edge detect.\n");
 				FallModeValue = 0;
@@ -379,7 +382,7 @@ uint8_t bcm2835_gpio_eds(uint8_t pin)
 		return 0x00;
 
 	}
-	else{
+	else {
 		printf("gpio detect type is wrong.\n");
 	}
 }
@@ -434,7 +437,7 @@ void bcm2835_gpio_clr_hen(uint8_t pin)
 // Low detect enable
 void bcm2835_gpio_len(uint8_t pin)
 {
-	GpioDetectType[pin] = 0x01;	
+	GpioDetectType[pin] = 0x01;
 }
 
 /*Modify for BananaPro by LeMaker Team*/
@@ -504,24 +507,24 @@ void bcm2835_gpio_set_pad(uint8_t group, uint32_t control)
 // milliseconds
 void bcm2835_delay(unsigned int millis)
 {
-    struct timespec sleeper;
-    
-    sleeper.tv_sec  = (time_t)(millis / 1000);
-    sleeper.tv_nsec = (long)(millis % 1000) * 1000000;
-    nanosleep(&sleeper, NULL);
+	struct timespec sleeper;
+
+	sleeper.tv_sec = (time_t)(millis / 1000);
+	sleeper.tv_nsec = (long)(millis % 1000) * 1000000;
+	nanosleep(&sleeper, NULL);
 }
 /*Add for BananaPro by LeMaker Team*/
-void delayMicrosecondsHard (unsigned int howLong)
+void delayMicrosecondsHard(unsigned int howLong)
 {
-  struct timeval tNow, tLong, tEnd ;
+	struct timeval tNow, tLong, tEnd;
 
-  gettimeofday (&tNow, NULL) ;
-  tLong.tv_sec  = howLong / 1000000 ;
-  tLong.tv_usec = howLong % 1000000 ;
-  timeradd (&tNow, &tLong, &tEnd) ;
+	gettimeofday(&tNow, NULL);
+	tLong.tv_sec = howLong / 1000000;
+	tLong.tv_usec = howLong % 1000000;
+	timeradd(&tNow, &tLong, &tEnd);
 
-  while (timercmp (&tNow, &tEnd, <))
-    gettimeofday (&tNow, NULL) ;
+	while (timercmp(&tNow, &tEnd, < ))
+		gettimeofday(&tNow, NULL);
 }
 
 /*end 2014.01.05*/
@@ -530,14 +533,14 @@ void delayMicrosecondsHard (unsigned int howLong)
 // microseconds
 void bcm2835_delayMicroseconds(uint64_t micros)
 {
-	struct timespec sleeper ;
+	struct timespec sleeper;
 
-	if (micros ==   0)
-		return ;
-		else if (micros  < 100)
-		delayMicrosecondsHard (micros) ;
-	else{
-		sleeper.tv_sec  = (time_t)(micros / 1000000);
+	if (micros == 0)
+		return;
+	else if (micros < 100)
+		delayMicrosecondsHard(micros);
+	else {
+		sleeper.tv_sec = (time_t)(micros / 1000000);
 		sleeper.tv_nsec = (long)(micros % 1000) * 1000;
 		nanosleep(&sleeper, NULL);
 	}
@@ -550,26 +553,26 @@ void bcm2835_delayMicroseconds(uint64_t micros)
 // Set the state of an output
 void bcm2835_gpio_write(uint8_t pin, uint8_t on)
 {
-    if (on)
-	bcm2835_gpio_set(pin);
-    else
-	bcm2835_gpio_clr(pin);
+	if (on)
+		bcm2835_gpio_set(pin);
+	else
+		bcm2835_gpio_clr(pin);
 }
 
 // Set the state of a all 32 outputs in the mask to on or off
 void bcm2835_gpio_write_multi(uint32_t mask, uint8_t on)
 {
-    if (on)
-	bcm2835_gpio_set_multi(mask);
-    else
-	bcm2835_gpio_clr_multi(mask);
+	if (on)
+		bcm2835_gpio_set_multi(mask);
+	else
+		bcm2835_gpio_clr_multi(mask);
 }
 
 // Set the state of a all 32 outputs in the mask to the values in value
 void bcm2835_gpio_write_mask(uint32_t value, uint32_t mask)
 {
-    bcm2835_gpio_set_multi(value & mask);
-    bcm2835_gpio_clr_multi((~value) & mask);
+	bcm2835_gpio_set_multi(value & mask);
+	bcm2835_gpio_clr_multi((~value) & mask);
 }
 
 // Set the pullup/down resistor for a pin
@@ -593,17 +596,17 @@ void bcm2835_gpio_write_mask(uint32_t value, uint32_t mask)
 /*Modify for BananaPro by LeMaker Team*/
 void bcm2835_gpio_set_pud(uint8_t pin, uint8_t pud)
 {
-    // Function selects are 10 pins per 32 bit word, 3 bits per pin
-	if(BpiPin[pin] > 0){
+	// Function selects are 10 pins per 32 bit word, 3 bits per pin
+	if (BpiPin[pin] > 0) {
 		int32_t bpipin = BpiPin[pin];
-		volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_PUL_OFFSET + (bpipin/32) * 0x24 +  ((bpipin%32)/16) *0x04) >> 2);
+		volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_PUL_OFFSET + (bpipin / 32) * 0x24 + ((bpipin % 32) / 16) * 0x04) >> 2);
 		uint8_t   shift = (bpipin % 16) * 2;
 		uint32_t  mask = BCM2835_GPIO_PUD_MASK << shift;
 		uint32_t  value = pud << shift;
-//			printf("before write:0x%x.\n",bcm2835_peri_read(paddr));
-//			printf("value = 0x%x,mask = 0x%x.\n",value,mask);
+		//			printf("before write:0x%x.\n",bcm2835_peri_read(paddr));
+		//			printf("value = 0x%x,mask = 0x%x.\n",value,mask);
 		bcm2835_peri_set_bits(paddr, value, mask);
-//			printf("after write:0x%x.\n",bcm2835_peri_read(paddr));
+		//			printf("after write:0x%x.\n",bcm2835_peri_read(paddr));
 	}
 }
 
@@ -611,10 +614,10 @@ void bcm2835_gpio_set_pud(uint8_t pin, uint8_t pud)
 void bcm2835_spi_begin(void)
 {
 	int ret;
-	spi_fd = open ("/dev/spidev0.0", O_RDWR);
+	spi_fd = open("/dev/spidev0.0", O_RDWR);
 
-	if( spi_fd< 0){
-		fprintf(stderr, "Unable to open /dev/spidev0.0: %s\n", strerror(errno)) ;
+	if (spi_fd < 0) {
+		fprintf(stderr, "Unable to open /dev/spidev0.0: %s\n", strerror(errno));
 		return;
 	}
 	ret = ioctl(spi_fd, SPI_IOC_WR_BITS_PER_WORD, &bits);
@@ -624,24 +627,24 @@ void bcm2835_spi_begin(void)
 	}
 
 	ret = ioctl(spi_fd, SPI_IOC_WR_MAX_SPEED_HZ, &speed);
-	if (ret == -1){
-		fprintf (stderr, "set SPI_IOC_WR_MAX_SPEED_HZ failed:%s\n",strerror(errno)) ;
+	if (ret == -1) {
+		fprintf(stderr, "set SPI_IOC_WR_MAX_SPEED_HZ failed:%s\n", strerror(errno));
 		return;
 	}
 
-	printf("open /dev/spidev0.0 ok..\n");	
+	printf("open /dev/spidev0.0 ok..\n");
 }
 
 /*Modify for BananaPro by LeMaker Team*/
 void bcm2835_spi_end(void)
-{  
+{
 	// Set all the SPI0 pins back to input
 	close(spi_fd);
 }
 
 void bcm2835_spi_setBitOrder(uint8_t order)
 {
-    // BCM2835_SPI_BIT_ORDER_MSBFIRST is the only one suported by SPI0
+	// BCM2835_SPI_BIT_ORDER_MSBFIRST is the only one suported by SPI0
 }
 
 /*Modify for BananaPro by LeMaker Team*/
@@ -651,12 +654,12 @@ void bcm2835_spi_setBitOrder(uint8_t order)
 // of the APB clock
 void bcm2835_spi_setClockDivider(uint32_t divider)
 {
-   int ret;
+	int ret;
 	speed = divider;
-	
+
 	ret = ioctl(spi_fd, SPI_IOC_WR_MAX_SPEED_HZ, &speed);
-	if (ret == -1){
-		fprintf (stderr, "set SPI_IOC_WR_MAX_SPEED_HZ failed:%s\n",strerror(errno)) ;
+	if (ret == -1) {
+		fprintf(stderr, "set SPI_IOC_WR_MAX_SPEED_HZ failed:%s\n", strerror(errno));
 		return;
 	}
 }
@@ -665,7 +668,7 @@ void bcm2835_spi_setClockDivider(uint32_t divider)
 void bcm2835_spi_setDataMode(uint8_t mode)
 {
 	int ret;
-	if (mode < 0 ||mode > 3){
+	if (mode < 0 || mode > 3) {
 		printf("Waring: spi DataMode should be 0~3.\n");
 		return;
 	}
@@ -680,35 +683,35 @@ void bcm2835_spi_setDataMode(uint8_t mode)
 // Writes (and reads) a single byte to SPI
 uint8_t bcm2835_spi_transfer(uint8_t value)
 {
-	struct spi_ioc_transfer spi ;
-	uint8_t rx_value,tx_value,ret;
+	struct spi_ioc_transfer spi;
+	uint8_t rx_value, tx_value, ret;
 	tx_value = value;
 	rx_value = value;
 
-	spi.tx_buf        = (unsigned long)&tx_value;
-	spi.rx_buf        = (unsigned long)&rx_value ;
-	spi.len           = 1 ;
-	spi.delay_usecs   = 0 ;
-	spi.speed_hz      = speed ;
-	spi.bits_per_word = 8 ;
+	spi.tx_buf = (unsigned long)&tx_value;
+	spi.rx_buf = (unsigned long)&rx_value;
+	spi.len = 1;
+	spi.delay_usecs = 0;
+	spi.speed_hz = speed;
+	spi.bits_per_word = 8;
 
-	if(ret = ioctl (spi_fd, SPI_IOC_MESSAGE(1), &spi) < 0){
-		fprintf (stderr, "transfer failed:%s\n", strerror(errno)) ;
+	if (ret = ioctl(spi_fd, SPI_IOC_MESSAGE(1), &spi) < 0) {
+		fprintf(stderr, "transfer failed:%s\n", strerror(errno));
 		return ret;
 	}
-  else
-  {
+	else
+	{
 		return rx_value;
-	}	
+	}
 }
 
 /*Modify for BananaPro by LeMaker Team*/
 // Writes (and reads) an number of bytes to SPI
 void bcm2835_spi_transfernb(char* tbuf, char* rbuf, uint32_t len)
 {
-	uint8_t value,i,rx_data;
+	uint8_t value, i, rx_data;
 	i = 0;
-	while(len > 0){
+	while (len > 0) {
 		value = tbuf[i];
 		rx_data = bcm2835_spi_transfer(value);
 		rbuf[i] = rx_data;
@@ -721,68 +724,68 @@ void bcm2835_spi_transfernb(char* tbuf, char* rbuf, uint32_t len)
 // Writes an number of bytes to SPI
 void bcm2835_spi_writenb(char* tbuf, uint32_t len)
 {
-		uint8_t value,i;
-		i = 0;
-		while(len > 0){
-			value = tbuf[i];
-			bcm2835_spi_transfer(value);
-			len--;
-			i++;
-		}
+	uint8_t value, i;
+	i = 0;
+	while (len > 0) {
+		value = tbuf[i];
+		bcm2835_spi_transfer(value);
+		len--;
+		i++;
+	}
 }
 
 // Writes (and reads) an number of bytes to SPI
 // Read bytes are copied over onto the transmit buffer
 void bcm2835_spi_transfern(char* buf, uint32_t len)
 {
-    bcm2835_spi_transfernb(buf, buf, len);
+	bcm2835_spi_transfernb(buf, buf, len);
 }
 
 /*Modify for BananaPro by LeMaker Team*/
 void bcm2835_spi_chipSelect(uint8_t cs)
 {
 	volatile uint32_t *paddr;
-	paddr = sunxi_spi0 + SUNXI_SPI0_CTRL/4;
-	bcm2835_peri_set_bits(paddr,cs<<12,SUNXI_SPI0_CS_CS);
+	paddr = sunxi_spi0 + SUNXI_SPI0_CTRL / 4;
+	bcm2835_peri_set_bits(paddr, cs << 12, SUNXI_SPI0_CS_CS);
 
-//CS ouput mode: 0-automatic output  1-manual output CS
-	bcm2835_peri_set_bits(paddr,0<<16,SUNXI_SPIO_CS_CTRL);
+	//CS ouput mode: 0-automatic output  1-manual output CS
+	bcm2835_peri_set_bits(paddr, 0 << 16, SUNXI_SPIO_CS_CTRL);
 
 }
 
 /*Modify for BananaPro by LeMaker Team*/
 void bcm2835_spi_setChipSelectPolarity(uint8_t cs, uint8_t active)
 {
-	volatile uint32_t* paddr ;
+	volatile uint32_t* paddr;
 	if (active)
 		active = 0;
 	else
 		active = 1;
-	
-	paddr = sunxi_spi0 + SUNXI_SPI0_CTRL/4;
-	bcm2835_peri_set_bits(paddr,active<<4, SUNXI_SPIO_CS_POL);
+
+	paddr = sunxi_spi0 + SUNXI_SPI0_CTRL / 4;
+	bcm2835_peri_set_bits(paddr, active << 4, SUNXI_SPIO_CS_POL);
 
 }
 
 /*Add for BananaPro by LeMaker Team*/
-static inline int i2c_smbus_access (int fd, char rw, uint8_t command, int size, union i2c_smbus_data *data)
+static inline int i2c_smbus_access(int fd, char rw, uint8_t command, int size, union i2c_smbus_data *data)
 {
-  struct i2c_smbus_ioctl_data args ;
+	struct i2c_smbus_ioctl_data args;
 
-  args.read_write = rw ;
-  args.command    = command ;
-  args.size       = size ;
-  args.data       = data ;
-  return ioctl (fd, I2C_SMBUS, &args) ;
+	args.read_write = rw;
+	args.command = command;
+	args.size = size;
+	args.data = data;
+	return ioctl(fd, I2C_SMBUS, &args);
 }
 /*end 2014.01.05*/
 
 /*Modify for BananaPro by LeMaker Team*/
 void bcm2835_i2c_begin(void)
 {
-	if ((i2c_fd= open ("/dev/i2c-2", O_RDWR)) < 0)
+	if ((i2c_fd = open("/dev/i2c-2", O_RDWR)) < 0)
 	{
-	fprintf(stderr, "bcm2835_i2c_begin: Unable to open /dev/i2c-2: %s\n",strerror(errno)) ;
+		fprintf(stderr, "bcm2835_i2c_begin: Unable to open /dev/i2c-2: %s\n", strerror(errno));
 	}
 	printf("open dev/i2c-2 ok..\n");
 
@@ -798,8 +801,8 @@ void bcm2835_i2c_end(void)
 void bcm2835_i2c_setSlaveAddress(uint8_t addr)
 {
 	// Set I2C Device Address
-	if (ioctl (i2c_fd, I2C_SLAVE, addr) < 0){
-		fprintf(stderr, "bcm2835_i2c_setSlaveAddress: set slave addr failed: %s\n",strerror(errno)) ;
+	if (ioctl(i2c_fd, I2C_SLAVE, addr) < 0) {
+		fprintf(stderr, "bcm2835_i2c_setSlaveAddress: set slave addr failed: %s\n", strerror(errno));
 	}
 	printf("set slave addr ok.\n");
 }
@@ -811,18 +814,18 @@ void bcm2835_i2c_setSlaveAddress(uint8_t addr)
 void bcm2835_i2c_setClockDivider(uint16_t divider)
 {
 	uint32_t value;
-  	volatile uint32_t* paddr;
-	if(divider ==BCM2835_I2C_CLOCK_DIVIDER_148)
+	volatile uint32_t* paddr;
+	if (divider == BCM2835_I2C_CLOCK_DIVIDER_148)
 		value = 0x12;
-	else if(divider == BCM2835_I2C_CLOCK_DIVIDER_150)
+	else if (divider == BCM2835_I2C_CLOCK_DIVIDER_150)
 		value = 0x1A;
-	else if(divider == BCM2835_I2C_CLOCK_DIVIDER_626)
+	else if (divider == BCM2835_I2C_CLOCK_DIVIDER_626)
 		value = 0x2A;
 	else
 		value = 0x52;
-	paddr = sunxi_iic2 + I2C2_CLK_OFFSET/4;
-	bcm2835_peri_write(paddr,value);
-	
+	paddr = sunxi_iic2 + I2C2_CLK_OFFSET / 4;
+	bcm2835_peri_write(paddr, value);
+
 }
 
 /*Modify for BananaPro by LeMaker Team*/
@@ -830,33 +833,33 @@ void bcm2835_i2c_setClockDivider(uint16_t divider)
 void bcm2835_i2c_set_baudrate(uint32_t baudrate)
 {
 	uint32_t divider;
-	if(baudrate > 400000)
+	if (baudrate > 400000)
 		baudrate = 400000;
-	else if(baudrate < 100000)
+	else if (baudrate < 100000)
 		baudrate = 100000;
-	if(baudrate > 340000)
+	if (baudrate > 340000)
 		divider = BCM2835_I2C_CLOCK_DIVIDER_148;
-	else if(baudrate > 240000)
+	else if (baudrate > 240000)
 		divider = BCM2835_I2C_CLOCK_DIVIDER_150;
-	else if(baudrate > 150000)
+	else if (baudrate > 150000)
 		divider = BCM2835_I2C_CLOCK_DIVIDER_626;
 	else divider = BCM2835_I2C_CLOCK_DIVIDER_2500;
-	bcm2835_i2c_setClockDivider( (uint16_t)divider );
+	bcm2835_i2c_setClockDivider((uint16_t)divider);
 }
 
 /*Modify for BananaPro by LeMaker Team*/
 // Writes an number of bytes to I2C
 uint8_t bcm2835_i2c_write(const char * buf, uint32_t len)
 {
-	int ret,i;	
-	
-	union i2c_smbus_data data ;
-	for(i = 0;i < len;i++)
+	int ret, i;
+
+	union i2c_smbus_data data;
+	for (i = 0; i < len; i++)
 	{
 		data.byte = *(buf + i);
 		//printf("write:data.byte = 0x%x\n",data.byte);
-		ret = i2c_smbus_access (i2c_fd, I2C_SMBUS_WRITE, data.byte, I2C_SMBUS_BYTE, NULL);
-		if(ret < 0){
+		ret = i2c_smbus_access(i2c_fd, I2C_SMBUS_WRITE, data.byte, I2C_SMBUS_BYTE, NULL);
+		if (ret < 0) {
 			printf("i2c write failed:%s\n", strerror(errno));
 			break;
 		}
@@ -868,17 +871,17 @@ uint8_t bcm2835_i2c_write(const char * buf, uint32_t len)
 // Read an number of bytes from I2C
 uint8_t bcm2835_i2c_read(char* buf, uint32_t len)
 {
-	int ret,i;
-	union i2c_smbus_data data ;
-	for(i = 0;i < len;i++)
+	int ret, i;
+	union i2c_smbus_data data;
+	for (i = 0; i < len; i++)
 	{
-		ret = i2c_smbus_access (i2c_fd, I2C_SMBUS_READ, 0, I2C_SMBUS_BYTE, &data);
-		if(ret < 0){
-			printf("i2c read failed:%s\n",strerror(errno));
+		ret = i2c_smbus_access(i2c_fd, I2C_SMBUS_READ, 0, I2C_SMBUS_BYTE, &data);
+		if (ret < 0) {
+			printf("i2c read failed:%s\n", strerror(errno));
 			break;
 		}
 		//printf("read:data.byte = 0x%x.\n",data.byte&0xff);
-		*(buf + i) = data.byte&0xFF;
+		*(buf + i) = data.byte & 0xFF;
 	}
 	return ret;
 }
@@ -888,29 +891,31 @@ uint8_t bcm2835_i2c_read(char* buf, uint32_t len)
 // the required register. Only works if your device supports this mode
 uint8_t bcm2835_i2c_read_register_rs(char* regaddr, char* buf, uint32_t len)
 {
-	int ret,i;
-	union i2c_smbus_data data ;
+	int ret, i;
+	union i2c_smbus_data data;
 	uint8_t reg = *regaddr;
-	if (len == 1){
-		ret = i2c_smbus_access (i2c_fd, I2C_SMBUS_READ, reg, I2C_SMBUS_BYTE, &data) ;
-		if(ret < 0){
-			printf("i2c read failed:%s\n",strerror(errno));
+	if (len == 1) {
+		ret = i2c_smbus_access(i2c_fd, I2C_SMBUS_READ, reg, I2C_SMBUS_BYTE, &data);
+		if (ret < 0) {
+			printf("i2c read failed:%s\n", strerror(errno));
 		}
-		*buf = data.byte&0xFF;
-	} else if (len == 2) {
-		ret = i2c_smbus_access (i2c_fd, I2C_SMBUS_READ, reg, I2C_SMBUS_WORD_DATA, &data) ;
-		if(ret < 0){
-			printf("i2c read failed:%s\n",strerror(errno));
+		*buf = data.byte & 0xFF;
+	}
+	else if (len == 2) {
+		ret = i2c_smbus_access(i2c_fd, I2C_SMBUS_READ, reg, I2C_SMBUS_WORD_DATA, &data);
+		if (ret < 0) {
+			printf("i2c read failed:%s\n", strerror(errno));
 		}
-		*buf = data.word&0xFFFF;
-	} else {
-		for(i = 0;i < len;i++)
+		*buf = data.word & 0xFFFF;
+	}
+	else {
+		for (i = 0; i < len; i++)
 		{
-			ret = i2c_smbus_access (i2c_fd, I2C_SMBUS_READ, reg, I2C_SMBUS_BYTE, &data) ;
-			if(ret < 0){
-				printf("i2c read failed:%s\n",strerror(errno));
+			ret = i2c_smbus_access(i2c_fd, I2C_SMBUS_READ, reg, I2C_SMBUS_BYTE, &data);
+			if (ret < 0) {
+				printf("i2c read failed:%s\n", strerror(errno));
 			}
-			*(buf + i) = data.byte&0xFF;
+			*(buf + i) = data.byte & 0xFF;
 		}
 	}
 	return ret;
@@ -920,10 +925,10 @@ uint8_t bcm2835_i2c_read_register_rs(char* regaddr, char* buf, uint32_t len)
 // Sending an arbitrary number of bytes before issuing a repeated start 
 // (with no prior stop) and reading a response. Some devices require this behavior.
 uint8_t bcm2835_i2c_write_read_rs(char* cmds, uint32_t cmds_len, char* buf, uint32_t buf_len)
-{   
+{
 	uint8_t ret;
-	ret = bcm2835_i2c_write(cmds,cmds_len);
-	ret = bcm2835_i2c_read(buf,buf_len);
+	ret = bcm2835_i2c_write(cmds, cmds_len);
+	ret = bcm2835_i2c_read(buf, buf_len);
 	return ret;
 }
 
@@ -948,29 +953,29 @@ void bcm2835_pwm_set_clock(uint32_t divisor)
 {
 	volatile uint32_t* paddr;
 	uint8_t value;
-	paddr = sunxi_pwm + (SUNXI_PWM_CTRL_OFFSET /4);
-	if((divisor == BCM2835_PWM_CLOCK_DIVIDER_32768) ||(divisor == BCM2835_PWM_CLOCK_DIVIDER_16384))
+	paddr = sunxi_pwm + (SUNXI_PWM_CTRL_OFFSET / 4);
+	if ((divisor == BCM2835_PWM_CLOCK_DIVIDER_32768) || (divisor == BCM2835_PWM_CLOCK_DIVIDER_16384))
 		value = 0x0C;
-	else if((divisor == BCM2835_PWM_CLOCK_DIVIDER_8192) ||(divisor ==BCM2835_PWM_CLOCK_DIVIDER_4096))
+	else if ((divisor == BCM2835_PWM_CLOCK_DIVIDER_8192) || (divisor == BCM2835_PWM_CLOCK_DIVIDER_4096))
 		value = 0x0B;
-	else if(divisor ==BCM2835_PWM_CLOCK_DIVIDER_2048)
+	else if (divisor == BCM2835_PWM_CLOCK_DIVIDER_2048)
 		value = 0x0A;
-	else if(divisor == BCM2835_PWM_CLOCK_DIVIDER_1024)
+	else if (divisor == BCM2835_PWM_CLOCK_DIVIDER_1024)
 		value = 0x09;
-	else if(divisor == BCM2835_PWM_CLOCK_DIVIDER_512)
+	else if (divisor == BCM2835_PWM_CLOCK_DIVIDER_512)
 		value = 0x08;
-	else if(divisor == BCM2835_PWM_CLOCK_DIVIDER_256)
+	else if (divisor == BCM2835_PWM_CLOCK_DIVIDER_256)
 		value = 0x08;
-	else if((divisor ==BCM2835_PWM_CLOCK_DIVIDER_128)||(divisor ==BCM2835_PWM_CLOCK_DIVIDER_64))
+	else if ((divisor == BCM2835_PWM_CLOCK_DIVIDER_128) || (divisor == BCM2835_PWM_CLOCK_DIVIDER_64))
 		value = 0x04;
-	else if((divisor ==BCM2835_PWM_CLOCK_DIVIDER_32) ||(divisor ==BCM2835_PWM_CLOCK_DIVIDER_32))
+	else if ((divisor == BCM2835_PWM_CLOCK_DIVIDER_32) || (divisor == BCM2835_PWM_CLOCK_DIVIDER_32))
 		value = 0x03;
-	else if((divisor ==BCM2835_PWM_CLOCK_DIVIDER_16) ||(divisor ==BCM2835_PWM_CLOCK_DIVIDER_8))
+	else if ((divisor == BCM2835_PWM_CLOCK_DIVIDER_16) || (divisor == BCM2835_PWM_CLOCK_DIVIDER_8))
 		value = 0x02;
-	else if((divisor ==BCM2835_PWM_CLOCK_DIVIDER_4) ||(divisor ==BCM2835_PWM_CLOCK_DIVIDER_2))
+	else if ((divisor == BCM2835_PWM_CLOCK_DIVIDER_4) || (divisor == BCM2835_PWM_CLOCK_DIVIDER_2))
 		value = 0x01;
 	else value = 0x00;
-	bcm2835_peri_set_bits(paddr,value << 15,SUNXI_PWM_CLKDIV_MASK);
+	bcm2835_peri_set_bits(paddr, value << 15, SUNXI_PWM_CLKDIV_MASK);
 
 }
 
@@ -979,12 +984,12 @@ void bcm2835_pwm_set_clock(uint32_t divisor)
 void bcm2835_pwm_set_mode(uint8_t channel, uint8_t markspace, uint8_t enabled)
 {
 	volatile uint32_t* paddr;
-	if(markspace == 0)
+	if (markspace == 0)
 		markspace = 1;
-	else 
+	else
 		markspace = 0;
-	paddr = sunxi_pwm + (SUNXI_PWM_CTRL_OFFSET /4);
-	bcm2835_peri_set_bits(paddr,markspace<< 22,0x01<<22);
+	paddr = sunxi_pwm + (SUNXI_PWM_CTRL_OFFSET / 4);
+	bcm2835_peri_set_bits(paddr, markspace << 22, 0x01 << 22);
 
 }
 
@@ -995,48 +1000,48 @@ void bcm2835_pwm_set_range(uint8_t channel, uint32_t range)
 {
 	volatile uint32_t* paddr;
 
-	if(channel == 1)
-		paddr = sunxi_pwm + (SUNXI_PWM_CH0_OFFSET /4);
-	else if(channel == 0)
-		paddr = sunxi_pwm + (SUNXI_PWM_CH1_OFFSET/4);
-	if(range >= 0xFFFF)
+	if (channel == 1)
+		paddr = sunxi_pwm + (SUNXI_PWM_CH0_OFFSET / 4);
+	else if (channel == 0)
+		paddr = sunxi_pwm + (SUNXI_PWM_CH1_OFFSET / 4);
+	if (range >= 0xFFFF)
 		range = 0xFFFF;
-	bcm2835_peri_set_bits(paddr,range<< 16,0xFFFF<<16);
- }
+	bcm2835_peri_set_bits(paddr, range << 16, 0xFFFF << 16);
+}
 
 /*Modify for BananaPro by LeMaker Team*/
 //compatible with the RPI PWM channel
 //RPI:PWM0 <----> BPR:PWM1
 void bcm2835_pwm_set_data(uint8_t channel, uint32_t data)
 {
-	uint32_t value,temp;
+	uint32_t value, temp;
 	volatile uint32_t* paddr;
-	if(channel == 1)
-		paddr = sunxi_pwm + (SUNXI_PWM_CH0_OFFSET /4);
-	else if(channel == 0)
-		paddr = sunxi_pwm + (SUNXI_PWM_CH1_OFFSET/4);
-	if(data >= 0xFFFF)
+	if (channel == 1)
+		paddr = sunxi_pwm + (SUNXI_PWM_CH0_OFFSET / 4);
+	else if (channel == 0)
+		paddr = sunxi_pwm + (SUNXI_PWM_CH1_OFFSET / 4);
+	if (data >= 0xFFFF)
 		data = 0xFFFF;
 	value = bcm2835_peri_read(paddr);
-	value >>=16;
-	if(data > value)
+	value >>= 16;
+	if (data > value)
 		data = value;
-	bcm2835_peri_set_bits(paddr,data,0xFFFF);
-	paddr = sunxi_pwm + (SUNXI_PWM_CTRL_OFFSET>>2);
+	bcm2835_peri_set_bits(paddr, data, 0xFFFF);
+	paddr = sunxi_pwm + (SUNXI_PWM_CTRL_OFFSET >> 2);
 	temp = bcm2835_peri_read(paddr);
-	if(channel == 1)
+	if (channel == 1)
 		temp |= 0x230;
 	else
 		temp |= 0x380000;
-	bcm2835_peri_write(paddr,temp);
+	bcm2835_peri_write(paddr, temp);
 }
 
 // Allocate page-aligned memory.
 void *malloc_aligned(size_t size)
 {
-    void *mem;
-    errno = posix_memalign(&mem, BCM2835_PAGE_SIZE, size);
-    return (errno ? NULL : mem);
+	void *mem;
+	errno = posix_memalign(&mem, BCM2835_PAGE_SIZE, size);
+	return (errno ? NULL : mem);
 }
 
 // Map 'size' bytes starting at 'off' in file 'fd' to memory.
@@ -1044,94 +1049,94 @@ void *malloc_aligned(size_t size)
 // On error print message.
 static void *mapmem(const char *msg, size_t size, int fd, off_t off)
 {
-    void *map = mmap(NULL, size, (PROT_READ | PROT_WRITE), MAP_SHARED, fd, off);
-    if (MAP_FAILED == map)
-	fprintf(stderr, "bcm2835_init: %s mmap failed: %s\n", msg, strerror(errno));
-    return map;
+	void *map = mmap(NULL, size, (PROT_READ | PROT_WRITE), MAP_SHARED, fd, off);
+	if (MAP_FAILED == map)
+		fprintf(stderr, "bcm2835_init: %s mmap failed: %s\n", msg, strerror(errno));
+	return map;
 }
 
 static void unmapmem(void **pmem, size_t size)
 {
-    if (*pmem == MAP_FAILED) return;
-    munmap(*pmem, size);
-    *pmem = MAP_FAILED;
+	if (*pmem == MAP_FAILED) return;
+	munmap(*pmem, size);
+	*pmem = MAP_FAILED;
 }
 /*Add for BananaPro by LeMaker Team*/
 static int get_cpuinfo_revision(void)
 {
-   FILE *fp;
-   char buffer[1024];
-   char hardware[1024];
+	FILE *fp;
+	char buffer[1024];
+	char hardware[1024];
 	char *ret;
 
-   if ((fp = fopen("/proc/cpuinfo", "r")) == NULL)
-      return -1;
+	if ((fp = fopen("/proc/cpuinfo", "r")) == NULL)
+		return -1;
 
-   while(!feof(fp))
-	 {
-      ret = fgets(buffer, sizeof(buffer) , fp);
-      sscanf(buffer, "Hardware	: %s", hardware);
-    	if (strcmp(hardware, "sun7i") == 0)
+	while (!feof(fp))
+	{
+		ret = fgets(buffer, sizeof(buffer), fp);
+		sscanf(buffer, "Hardware	: %s", hardware);
+		if (strcmp(hardware, "sun7i") == 0)
 		{
 			return 1;
 		}
-   }
-   fclose(fp);
-   return 0;
+	}
+	fclose(fp);
+	return 0;
 }
 
 /*end 2015.01.05*/
 
  /*Modify for BananaPro by LeMaker Team*/
 // Initialise this library.
-int bcm2835_init(void)  
+int bcm2835_init(void)
 {
 	int memfd = -1;
 	int ok = 0;
 	uint32_t mmap_base;
 	uint32_t mmap_seek;
 	volatile uint32_t *sunxi_tmp;
-	
-	if (1 != get_cpuinfo_revision()) 
+
+	if (1 != get_cpuinfo_revision())
 	{
 		fprintf(stderr, "bcm3825_init: The current version only support the BananaPro !\n");
 		goto exit;
 	}
-	 // Open the master /dev/memory device
-	if ((memfd = open("/dev/mem", O_RDWR | O_SYNC) ) < 0) 
+	// Open the master /dev/memory device
+	if ((memfd = open("/dev/mem", O_RDWR | O_SYNC)) < 0)
 	{
 		fprintf(stderr, "bcm2835_init: Unable to open /dev/mem: %s\n",
-		strerror(errno)) ;
+			strerror(errno));
 		goto exit;
 	}
-	
+
 	if (debug)
 	{
 		sunxi_gpio = (uint32_t*)SUNXI_GPIO_BASE;
-		sunxi_pwm  = (uint32_t*)SUNXI_GPIO_PWM;
+		sunxi_pwm = (uint32_t*)SUNXI_GPIO_PWM;
 		sunxi_spi0 = (uint32_t*)SUNXI_SPI0_BASE;
 		sunxi_iic2 = (uint32_t*)SUNXI_IIC2_BASE;
 		return 1;
 	}
 	mmap_base = (SUNXI_GPIO_BASE & (~MAP_MASK));
-	mmap_seek = (SUNXI_GPIO_BASE-mmap_base)>> 2;
-	sunxi_gpio =  (uint32_t *)mmap(NULL, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, memfd, mmap_base);
+	mmap_seek = (SUNXI_GPIO_BASE - mmap_base) >> 2;
+	sunxi_gpio = (uint32_t *)mmap(NULL, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, memfd, mmap_base);
 	if (MAP_FAILED == sunxi_gpio)
 	{
 		fprintf(stderr, "bcm2835_init: %s mmap failed: %s\n", "sunxi_gpio", strerror(errno));
 		goto exit;
-	}	
+	}
 	sunxi_tmp = sunxi_gpio;
-	 /*gpio register base address*/
-	sunxi_gpio += mmap_seek;  
+	/*gpio register base address*/
+	sunxi_gpio += mmap_seek;
 
 	mmap_base = (SUNXI_GPIO_PWM &(~MAP_MASK));
 	mmap_seek = (SUNXI_GPIO_PWM - mmap_base) >> 2;
 	/*pwm register base address*/
-	sunxi_pwm =  sunxi_tmp + mmap_seek; 
+	sunxi_pwm = sunxi_tmp + mmap_seek;
 
 	/*spi register base address*/
-	sunxi_spi0 =  (uint32_t *)mmap(NULL, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, memfd, SUNXI_SPI0_BASE);
+	sunxi_spi0 = (uint32_t *)mmap(NULL, MAP_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, memfd, SUNXI_SPI0_BASE);
 	if (MAP_FAILED == sunxi_spi0)
 	{
 		fprintf(stderr, "bcm2835_init: %s mmap failed: %s\n", "sunxi_spi0", strerror(errno));
@@ -1144,21 +1149,21 @@ int bcm2835_init(void)
 	if (MAP_FAILED == sunxi_iic2)
 	{
 		fprintf(stderr, "bcm2835_init: %s mmap failed: %s\n", "sunxi_iic2", strerror(errno));
-		goto exit;			
+		goto exit;
 	}
 	/*iic2 register base address*/
 	sunxi_iic2 += mmap_seek;
 
 	ok = 1;
-	
-	exit:
-	    if (memfd >= 0)
-	        close(memfd);
 
-    if (!ok)
-	bcm2835_close();
+exit:
+	if (memfd >= 0)
+		close(memfd);
 
-    return ok;
+	if (!ok)
+		bcm2835_close();
+
+	return ok;
 }
 
 /*Modify for BananaPro by LeMaker Team*/
@@ -1167,113 +1172,113 @@ int bcm2835_close(void)
 {
 	uint32_t mmap_base;
 	uint32_t mmap_seek;
-    if (debug) return 1; // Success
-    
- 	mmap_base = (SUNXI_GPIO_BASE & (~MAP_MASK));
-	mmap_seek = (SUNXI_GPIO_BASE - mmap_base)>> 2;
+	if (debug) return 1; // Success
+
+	mmap_base = (SUNXI_GPIO_BASE & (~MAP_MASK));
+	mmap_seek = (SUNXI_GPIO_BASE - mmap_base) >> 2;
 	sunxi_gpio -= mmap_seek;
- 	if(MAP_FAILED == sunxi_gpio) return 1;
+	if (MAP_FAILED == sunxi_gpio) return 1;
 	else
-	{	
+	{
 		munmap((void *)sunxi_gpio, MAP_SIZE);
 		sunxi_gpio = MAP_FAILED;
 	}
 
-	if(MAP_FAILED == sunxi_spi0) return 1;
+	if (MAP_FAILED == sunxi_spi0) return 1;
 	else
-	{	
+	{
 		munmap((void *)sunxi_spi0, MAP_SIZE);
 		sunxi_spi0 = MAP_FAILED;
-	}	
+	}
 
- 	mmap_base = (SUNXI_IIC2_BASE & (~MAP_MASK));
-	mmap_seek = (SUNXI_IIC2_BASE - mmap_base)>> 2;
+	mmap_base = (SUNXI_IIC2_BASE & (~MAP_MASK));
+	mmap_seek = (SUNXI_IIC2_BASE - mmap_base) >> 2;
 	sunxi_iic2 -= mmap_seek;
-	if(MAP_FAILED == sunxi_iic2) return 1;
+	if (MAP_FAILED == sunxi_iic2) return 1;
 	else
-	{	
+	{
 		munmap((void *)sunxi_iic2, MAP_SIZE);
 		sunxi_iic2 = MAP_FAILED;
-	}	
+	}
 
 	return 1;
-}    
+}
 
 #ifdef BCM2835_TEST
 // this is a simple test program that prints out what it will do rather than 
 // actually doing it
 int main(int argc, char **argv)
 {
-    // Be non-destructive
-    bcm2835_set_debug(1);
+	// Be non-destructive
+	bcm2835_set_debug(1);
 
-    if (!bcm2835_init())
-	return 1;
+	if (!bcm2835_init())
+		return 1;
 
-    // Configure some GPIO pins fo some testing
-    // Set RPI pin P1-11 to be an output
-    bcm2835_gpio_fsel(RPI_GPIO_P1_11, BCM2835_GPIO_FSEL_OUTP);
-    // Set RPI pin P1-15 to be an input
-    bcm2835_gpio_fsel(RPI_GPIO_P1_15, BCM2835_GPIO_FSEL_INPT);
-    //  with a pullup
-    bcm2835_gpio_set_pud(RPI_GPIO_P1_15, BCM2835_GPIO_PUD_UP);
-    // And a low detect enable
-    bcm2835_gpio_len(RPI_GPIO_P1_15);
-    // and input hysteresis disabled on GPIOs 0 to 27
-    bcm2835_gpio_set_pad(BCM2835_PAD_GROUP_GPIO_0_27, BCM2835_PAD_SLEW_RATE_UNLIMITED|BCM2835_PAD_DRIVE_8mA);
+	// Configure some GPIO pins fo some testing
+	// Set RPI pin P1-11 to be an output
+	bcm2835_gpio_fsel(RPI_GPIO_P1_11, BCM2835_GPIO_FSEL_OUTP);
+	// Set RPI pin P1-15 to be an input
+	bcm2835_gpio_fsel(RPI_GPIO_P1_15, BCM2835_GPIO_FSEL_INPT);
+	//  with a pullup
+	bcm2835_gpio_set_pud(RPI_GPIO_P1_15, BCM2835_GPIO_PUD_UP);
+	// And a low detect enable
+	bcm2835_gpio_len(RPI_GPIO_P1_15);
+	// and input hysteresis disabled on GPIOs 0 to 27
+	bcm2835_gpio_set_pad(BCM2835_PAD_GROUP_GPIO_0_27, BCM2835_PAD_SLEW_RATE_UNLIMITED | BCM2835_PAD_DRIVE_8mA);
 
 #if 1
-    // Blink
-    while (1)
-    {
-	// Turn it on
-	bcm2835_gpio_write(RPI_GPIO_P1_11, HIGH);
-	
-	// wait a bit
-	bcm2835_delay(500);
-	
-	// turn it off
-	bcm2835_gpio_write(RPI_GPIO_P1_11, LOW);
-	
-	// wait a bit
-	bcm2835_delay(500);
-    }
-#endif
-
-#if 0
-    // Read input
-    while (1)
-    {
-	// Read some data
-	uint8_t value = bcm2835_gpio_lev(RPI_GPIO_P1_15);
-	printf("read from pin 15: %d\n", value);
-	
-	// wait a bit
-	bcm2835_delay(500);
-    }
-#endif
-
-#if 0
-    // Look for a low event detection
-    // eds will be set whenever pin 15 goes low
-    while (1)
-    {
-	if (bcm2835_gpio_eds(RPI_GPIO_P1_15))
+	// Blink
+	while (1)
 	{
-	    // Now clear the eds flag by setting it to 1
-	    bcm2835_gpio_set_eds(RPI_GPIO_P1_15);
-	    printf("low event detect for pin 15\n");
-	}
+		// Turn it on
+		bcm2835_gpio_write(RPI_GPIO_P1_11, HIGH);
 
-	// wait a bit
-	bcm2835_delay(500);
-    }
+		// wait a bit
+		bcm2835_delay(500);
+
+		// turn it off
+		bcm2835_gpio_write(RPI_GPIO_P1_11, LOW);
+
+		// wait a bit
+		bcm2835_delay(500);
+	}
 #endif
 
-    if (!bcm2835_close())
-	return 1;
+#if 0
+	// Read input
+	while (1)
+	{
+		// Read some data
+		uint8_t value = bcm2835_gpio_lev(RPI_GPIO_P1_15);
+		printf("read from pin 15: %d\n", value);
 
-    return 0;
+		// wait a bit
+		bcm2835_delay(500);
+	}
+#endif
+
+#if 0
+	// Look for a low event detection
+	// eds will be set whenever pin 15 goes low
+	while (1)
+	{
+		if (bcm2835_gpio_eds(RPI_GPIO_P1_15))
+		{
+			// Now clear the eds flag by setting it to 1
+			bcm2835_gpio_set_eds(RPI_GPIO_P1_15);
+			printf("low event detect for pin 15\n");
+		}
+
+		// wait a bit
+		bcm2835_delay(500);
+	}
+#endif
+
+	if (!bcm2835_close())
+		return 1;
+
+	return 0;
 }
 #endif
 
