@@ -1398,6 +1398,10 @@ extern "C" {
     ///  Can vary from 0 to RANGE.
     extern void bcm2835_pwm_set_data(uint8_t channel, uint32_t data);
 
+	/*     */
+	extern void bcm2835_SetDeviceName(char* deviceName);
+	/*end 2016.11.30*/
+
     /// @} 
 #ifdef __cplusplus
 }

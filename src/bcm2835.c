@@ -45,20 +45,20 @@ static uint8_t  channel = 0; /*default CE0*/
 
 static int32_t BpiPin[GPIONUM] =
 {
-	 257,256,   //BCM GPIO0,1
-	 53,52,      //BCM GPIO2,3
-	 226,35,     //BCM GPIO4,5
-	 277,270,   //BCM GPIO6,7
-	 266,269,   //BCM GPIO8,9
-	 268,267,   //BCM GPIO10,11
-	 276,45,     //BCM GPIO12,13
-	 228,229,   //BCM GPIO14,15
-	 38,275,     //BCM GPIO16,17
-	 259,39,     //BCM GPIO18,19
-	 44, 40,     //BCM GPIO20,21
-	 273,244,   //BCM GPIO22,23
-	 245,272,   //BCM GPIO24,25
-	 37, 274,   //BCM GPIO26,27
+	257,256,   //BCM GPIO0,1
+	53,52,      //BCM GPIO2,3
+	226,35,     //BCM GPIO4,5
+	277,270,   //BCM GPIO6,7
+	266,269,   //BCM GPIO8,9
+	268,267,   //BCM GPIO10,11
+	276,45,     //BCM GPIO12,13
+	228,229,   //BCM GPIO14,15
+	38,275,     //BCM GPIO16,17
+	259,39,     //BCM GPIO18,19
+	44, 40,     //BCM GPIO20,21
+	273,244,   //BCM GPIO22,23
+	245,272,   //BCM GPIO24,25
+	37, 274,   //BCM GPIO26,27
 };
 static uint8_t GpioDetectType[32] = { 0x0 };
 static uint32_t ReadRisingCnt = 0;
@@ -104,6 +104,16 @@ static int i2c_fd = -1;
 static int spi_fd = -1;
 
 /*end 2015.01.05*/
+
+/*  */
+#define USE_KERNEL_V4
+static char* DeviceName = "/dev/spidev0.0";
+void bcm2835_SetDeviceName(char* deviceName)
+{
+	DeviceName = deviceName;
+}
+
+/*end 2016.11.30*/
 
 //
 // Low level register access functions
@@ -611,13 +621,15 @@ void bcm2835_gpio_set_pud(uint8_t pin, uint8_t pud)
 }
 
 /*Modify for BananaPro by LeMaker Team*/
+//Modified by Kimberlime.
+//for an armbian image with kernel 4.x, spidev32766.0 instead of spidev0.0.
 void bcm2835_spi_begin(void)
 {
 	int ret;
-	spi_fd = open("/dev/spidev0.0", O_RDWR);
+	spi_fd = open(DeviceName, O_RDWR);
 
 	if (spi_fd < 0) {
-		fprintf(stderr, "Unable to open /dev/spidev0.0: %s\n", strerror(errno));
+		fprintf(stderr, "Unable to open %s: %s\n", DeviceName, strerror(errno));
 		return;
 	}
 	ret = ioctl(spi_fd, SPI_IOC_WR_BITS_PER_WORD, &bits);
@@ -632,7 +644,7 @@ void bcm2835_spi_begin(void)
 		return;
 	}
 
-	printf("open /dev/spidev0.0 ok..\n");
+	printf("open %s ok..\n", DeviceName);
 }
 
 /*Modify for BananaPro by LeMaker Team*/
@@ -652,6 +664,9 @@ void bcm2835_spi_setBitOrder(uint8_t order)
 // The divisor must be a power of 2. Odd numbers
 // rounded down. The maximum SPI clock rate is
 // of the APB clock
+
+//commented by Kimberlime.
+//This method does not set the clock divider, but sets the spi speed.
 void bcm2835_spi_setClockDivider(uint32_t divider)
 {
 	int ret;
@@ -681,6 +696,9 @@ void bcm2835_spi_setDataMode(uint8_t mode)
 
 /*Modify for BananaPro by LeMaker Team*/
 // Writes (and reads) a single byte to SPI
+
+//Modified by Kimberlime.
+//added some members which is added to spi_ioc_transfer structure in kernel 4.x.
 uint8_t bcm2835_spi_transfer(uint8_t value)
 {
 	struct spi_ioc_transfer spi;
@@ -694,6 +712,12 @@ uint8_t bcm2835_spi_transfer(uint8_t value)
 	spi.delay_usecs = 0;
 	spi.speed_hz = speed;
 	spi.bits_per_word = 8;
+#ifdef USE_KERNEL_V4
+	spi.cs_change = 0;
+	spi.tx_nbits = 0;
+	spi.rx_nbits = 0;
+	spi.pad = 0;
+#endif
 
 	if (ret = ioctl(spi_fd, SPI_IOC_MESSAGE(1), &spi) < 0) {
 		fprintf(stderr, "transfer failed:%s\n", strerror(errno));
@@ -707,16 +731,30 @@ uint8_t bcm2835_spi_transfer(uint8_t value)
 
 /*Modify for BananaPro by LeMaker Team*/
 // Writes (and reads) an number of bytes to SPI
+
+//Modified by Kimberlime.
+//added some members which is added to spi_ioc_transfer structure in kernel 4.x.
+//modifed to transfer multi-bytes at a time.
 void bcm2835_spi_transfernb(char* tbuf, char* rbuf, uint32_t len)
 {
-	uint8_t value, i, rx_data;
-	i = 0;
-	while (len > 0) {
-		value = tbuf[i];
-		rx_data = bcm2835_spi_transfer(value);
-		rbuf[i] = rx_data;
-		len--;
-		i++;
+	struct spi_ioc_transfer spi;
+	uint8_t ret;
+
+	spi.tx_buf = (unsigned long)tbuf;
+	spi.rx_buf = (unsigned long)rbuf;
+	spi.len = 1;
+	spi.delay_usecs = 0;
+	spi.speed_hz = speed;
+	spi.bits_per_word = 8;
+#ifdef USE_KERNEL_V4
+	spi.cs_change = 0;
+	spi.tx_nbits = 0;
+	spi.rx_nbits = 0;
+	spi.pad = 0;
+#endif
+
+	if (ret = ioctl(spi_fd, SPI_IOC_MESSAGE(1), &spi) < 0) {
+		fprintf(stderr, "transfer failed:%s\n", strerror(errno));
 	}
 }
 
@@ -736,9 +774,32 @@ void bcm2835_spi_writenb(char* tbuf, uint32_t len)
 
 // Writes (and reads) an number of bytes to SPI
 // Read bytes are copied over onto the transmit buffer
+
+
+//Modified by Kimberlime.
+//added some members which is added to spi_ioc_transfer structure in kernel 4.x.
+//modifed to transfer multi-bytes at a time.
 void bcm2835_spi_transfern(char* buf, uint32_t len)
 {
-	bcm2835_spi_transfernb(buf, buf, len);
+	struct spi_ioc_transfer spi;
+	uint8_t ret;
+
+	spi.tx_buf = (unsigned long)buf;
+	spi.rx_buf = (unsigned long)buf;
+	spi.len = 1;
+	spi.delay_usecs = 0;
+	spi.speed_hz = speed;
+	spi.bits_per_word = 8;
+#ifdef USE_KERNEL_V4
+	spi.cs_change = 0;
+	spi.tx_nbits = 0;
+	spi.rx_nbits = 0;
+	spi.pad = 0;
+#endif
+
+	if (ret = ioctl(spi_fd, SPI_IOC_MESSAGE(1), &spi) < 0) {
+		fprintf(stderr, "transfer failed:%s\n", strerror(errno));
+	}
 }
 
 /*Modify for BananaPro by LeMaker Team*/
@@ -1087,8 +1148,11 @@ static int get_cpuinfo_revision(void)
 
 /*end 2015.01.05*/
 
- /*Modify for BananaPro by LeMaker Team*/
+/*Modify for BananaPro by LeMaker Team*/
 // Initialise this library.
+
+//Modified by Kimberlime.
+//got rid of version check process.
 int bcm2835_init(void)
 {
 	int memfd = -1;
@@ -1097,11 +1161,11 @@ int bcm2835_init(void)
 	uint32_t mmap_seek;
 	volatile uint32_t *sunxi_tmp;
 
-	if (1 != get_cpuinfo_revision())
-	{
-		fprintf(stderr, "bcm3825_init: The current version only support the BananaPro !\n");
-		goto exit;
-	}
+	//if (1 != get_cpuinfo_revision())
+	//{
+	//	fprintf(stderr, "bcm3825_init: The current version only support the BananaPro !\n");
+	//	goto exit;
+	//}
 	// Open the master /dev/memory device
 	if ((memfd = open("/dev/mem", O_RDWR | O_SYNC)) < 0)
 	{
