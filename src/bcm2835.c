@@ -621,8 +621,6 @@ void bcm2835_gpio_set_pud(uint8_t pin, uint8_t pud)
 }
 
 /*Modify for BananaPro by LeMaker Team*/
-//Modified by Kimberlime.
-//for an armbian image with kernel 4.x, spidev32766.0 instead of spidev0.0.
 void bcm2835_spi_begin(void)
 {
 	int ret;
@@ -742,7 +740,7 @@ void bcm2835_spi_transfernb(char* tbuf, char* rbuf, uint32_t len)
 
 	spi.tx_buf = (unsigned long)tbuf;
 	spi.rx_buf = (unsigned long)rbuf;
-	spi.len = 1;
+	spi.len = len;
 	spi.delay_usecs = 0;
 	spi.speed_hz = speed;
 	spi.bits_per_word = 8;
@@ -786,7 +784,7 @@ void bcm2835_spi_transfern(char* buf, uint32_t len)
 
 	spi.tx_buf = (unsigned long)buf;
 	spi.rx_buf = (unsigned long)buf;
-	spi.len = 1;
+	spi.len = len;
 	spi.delay_usecs = 0;
 	spi.speed_hz = speed;
 	spi.bits_per_word = 8;
