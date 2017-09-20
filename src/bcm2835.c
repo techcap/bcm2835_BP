@@ -43,24 +43,7 @@ static uint32_t speed = 500000;
 static uint16_t delay;
 static uint8_t  channel = 0; /*default CE0*/
 
-static int32_t BpiPin[GPIONUM] =
-{
-	257,256,   //BCM GPIO0,1
-	53,52,      //BCM GPIO2,3
-	226,35,     //BCM GPIO4,5
-	277,270,   //BCM GPIO6,7
-	266,269,   //BCM GPIO8,9
-	268,267,   //BCM GPIO10,11
-	276,45,     //BCM GPIO12,13
-	228,229,   //BCM GPIO14,15
-	38,275,     //BCM GPIO16,17
-	259,39,     //BCM GPIO18,19
-	44, 40,     //BCM GPIO20,21
-	273,244,   //BCM GPIO22,23
-	245,272,   //BCM GPIO24,25
-	37, 274,   //BCM GPIO26,27
-};
-static uint8_t GpioDetectType[32] = { 0x0 };
+static uint8_t GpioDetectType[320] = { 0x0 };
 static uint32_t ReadRisingCnt = 0;
 static uint32_t ReadFallCnt = 0;
 static uint8_t RisingModeValue = 1;
@@ -235,12 +218,11 @@ void bcm2835_peri_set_bits(volatile uint32_t* paddr, uint32_t value, uint32_t ma
 //      X / 10 + ((X % 10) * 3)
 
 /*Modify for BananaPro by LeMaker Team*/
-void bcm2835_gpio_fsel(uint8_t pin, uint8_t mode)
+void bcm2835_gpio_fsel(int pin, uint8_t mode)
 {
 	// Function selects are 10 pins per 32 bit word, 3 bits per pin
-	int32_t bpipin = BpiPin[pin];
-	volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_CFG_OFFSET + (bpipin / 32) * 0x24 + ((bpipin % 32) / 8) * 0x04) >> 2);
-	uint8_t   shift = (bpipin % 8) * 4;
+	volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_CFG_OFFSET + (pin / 32) * 0x24 + ((pin % 32) / 8) * 0x04) >> 2);
+	uint8_t   shift = (pin % 8) * 4;
 	uint32_t  mask = BCM2835_GPIO_FSEL_MASK << shift;
 	uint32_t  value = mode << shift;
 	if (debug)printf("bcm2835_gpio_fsel:before write:0x%x.\n", bcm2835_peri_read(paddr));
@@ -251,13 +233,12 @@ void bcm2835_gpio_fsel(uint8_t pin, uint8_t mode)
 
 /*Modify for BananaPro by LeMaker Team*/
 // Set output pin
-void bcm2835_gpio_set(uint8_t pin)
+void bcm2835_gpio_set(int pin)
 {
 
-	int32_t bpipin = BpiPin[pin];
 
-	volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET + (bpipin / 32) * 0x24) >> 2);
-	uint8_t   shift = bpipin % 32;
+	volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET + (pin / 32) * 0x24) >> 2);
+	uint8_t   shift = pin % 32;
 	uint32_t  mask = 0x01 << shift;
 	uint32_t  value = 1 << shift;
 	bcm2835_peri_set_bits(paddr, value, mask);
@@ -266,11 +247,10 @@ void bcm2835_gpio_set(uint8_t pin)
 
 /*Modify for BananaPro by LeMaker Team*/
 // Clear output pin
-void bcm2835_gpio_clr(uint8_t pin)
+void bcm2835_gpio_clr(int pin)
 {
-	int32_t bpipin = BpiPin[pin];
-	volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET + (bpipin / 32) * 0x24) >> 2);
-	uint8_t   shift = bpipin % 32;
+	volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET + (pin / 32) * 0x24) >> 2);
+	uint8_t   shift = pin % 32;
 	uint32_t  mask = 0x01 << shift;
 	uint32_t  value = 0 << shift;
 	bcm2835_peri_set_bits(paddr, value, mask);
@@ -280,61 +260,58 @@ void bcm2835_gpio_clr(uint8_t pin)
 // Set all output pins in the mask
 void bcm2835_gpio_set_multi(uint32_t mask)
 {
-	uint8_t i = 0;
-	for (i; i < GPIONUM; i++) {
-		if (mask & 0x01) {
-			if (BpiPin[i] > 0) {
-				int32_t bpipin = BpiPin[i];
+	//uint8_t i = 0;
+	//for (i; i < GPIONUM; i++) {
+	//	if (mask & 0x01) {
+	//		if (BpiPin[i] > 0) {
+	//			int32_t bpipin = BpiPin[i];
 
-				volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET + (bpipin / 32) * 0x24) >> 2);
-				uint8_t   shift = bpipin % 32;
-				uint32_t  mask_bit = 0x01 << shift;
-				uint32_t  value = 1 << shift;
-				bcm2835_peri_set_bits(paddr, value, mask_bit);
-			}
-		}
-		mask = mask >> 1;
-	}
+	//			volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET + (bpipin / 32) * 0x24) >> 2);
+	//			uint8_t   shift = bpipin % 32;
+	//			uint32_t  mask_bit = 0x01 << shift;
+	//			uint32_t  value = 1 << shift;
+	//			bcm2835_peri_set_bits(paddr, value, mask_bit);
+	//		}
+	//	}
+	//	mask = mask >> 1;
+	//}
 }
 
 /*Modify for BananaPro by LeMaker Team*/
 // Clear all output pins in the mask
 void bcm2835_gpio_clr_multi(uint32_t mask)
 {
-	uint8_t i = 0;
-	for (i; i < GPIONUM; i++) {
-		if (mask & 0x01) {
-			if (BpiPin[i] > 0) {
-				int32_t bpipin = BpiPin[i];
-				//printf("pin = %d.\n",bpipin);
-				volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET + (bpipin / 32) * 0x24) >> 2);
-				uint8_t   shift = bpipin % 32;
-				uint32_t  mask_bit = 0x01 << shift;
-				uint32_t  value = 0 << shift;
-				bcm2835_peri_set_bits(paddr, value, mask_bit);
-			}
-		}
-		mask = mask >> 1;
-	}
+	//uint8_t i = 0;
+	//for (i; i < GPIONUM; i++) {
+	//	if (mask & 0x01) {
+	//		if (BpiPin[i] > 0) {
+	//			int32_t bpipin = BpiPin[i];
+	//			//printf("pin = %d.\n",bpipin);
+	//			volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET + (bpipin / 32) * 0x24) >> 2);
+	//			uint8_t   shift = bpipin % 32;
+	//			uint32_t  mask_bit = 0x01 << shift;
+	//			uint32_t  value = 0 << shift;
+	//			bcm2835_peri_set_bits(paddr, value, mask_bit);
+	//		}
+	//	}
+	//	mask = mask >> 1;
+	//}
 }
 
 /*Modify for BananaPro by LeMaker Team*/
 // Read input pin
-uint8_t bcm2835_gpio_lev(uint8_t pin)
+uint8_t bcm2835_gpio_lev(int pin)
 {
-	if (BpiPin[pin] > 0) {
-		int32_t bpipin = BpiPin[pin];
-		volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET + (bpipin / 32) * 0x24) >> 2);
-		uint8_t shift = bpipin % 32;
-		uint32_t value = bcm2835_peri_read(paddr);
-		return (value & (1 << shift)) ? HIGH : LOW;
-	}
+	volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_DAT_OFFSET + (pin / 32) * 0x24) >> 2);
+	uint8_t shift = pin % 32;
+	uint32_t value = bcm2835_peri_read(paddr);
+	return (value & (1 << shift)) ? HIGH : LOW;
 }
 
 /*Modify for BananaPro by LeMaker Team*/
 // See if an event detection bit is set
 // Sigh cant support interrupts yet
-uint8_t bcm2835_gpio_eds(uint8_t pin)
+uint8_t bcm2835_gpio_eds(int pin)
 {
 	uint8_t value, rising, i = 0;
 	if (GpioDetectType[pin] == 0x01) {//low detect
@@ -399,85 +376,85 @@ uint8_t bcm2835_gpio_eds(uint8_t pin)
 
 /*Modify for BananaPro by LeMaker Team*/
 // Write a 1 to clear the bit in EDS
-void bcm2835_gpio_set_eds(uint8_t pin)
+void bcm2835_gpio_set_eds(int pin)
 {
 	bcm2835_delay(500);
 }
 
 /*Modify for BananaPro by LeMaker Team*/
 // Rising edge detect enable
-void bcm2835_gpio_ren(uint8_t pin)
+void bcm2835_gpio_ren(int pin)
 {
 	GpioDetectType[pin] = 0x04;
 }
 
 /*Modify for BananaPro by LeMaker Team*/
-void bcm2835_gpio_clr_ren(uint8_t pin)
+void bcm2835_gpio_clr_ren(int pin)
 {
 	GpioDetectType[pin] &= 0xFB;
 }
 
 /*Modify for BananaPro by LeMaker Team*/
 // Falling edge detect enable
-void bcm2835_gpio_fen(uint8_t pin)
+void bcm2835_gpio_fen(int pin)
 {
 	GpioDetectType[pin] = 0x08;
 }
 
 /*Modify for BananaPro by LeMaker Team*/
-void bcm2835_gpio_clr_fen(uint8_t pin)
+void bcm2835_gpio_clr_fen(int pin)
 {
 	GpioDetectType[pin] &= 0xF7;
 }
 
 /*Modify for BananaPro by LeMaker Team*/
 // High detect enable
-void bcm2835_gpio_hen(uint8_t pin)
+void bcm2835_gpio_hen(int pin)
 {
 	GpioDetectType[pin] = 0x02;
 }
 
 /*Modify for BananaPro by LeMaker Team*/
-void bcm2835_gpio_clr_hen(uint8_t pin)
+void bcm2835_gpio_clr_hen(int pin)
 {
 	GpioDetectType[pin] &= 0xFD;
 }
 
 /*Modify for BananaPro by LeMaker Team*/
 // Low detect enable
-void bcm2835_gpio_len(uint8_t pin)
+void bcm2835_gpio_len(int pin)
 {
 	GpioDetectType[pin] = 0x01;
 }
 
 /*Modify for BananaPro by LeMaker Team*/
-void bcm2835_gpio_clr_len(uint8_t pin)
+void bcm2835_gpio_clr_len(int pin)
 {
 	GpioDetectType[pin] &= 0xFE;
 }
 
 /*Modify for BananaPro by LeMaker Team*/
 // Async rising edge detect enable
-void bcm2835_gpio_aren(uint8_t pin)
+void bcm2835_gpio_aren(int pin)
 {
 	GpioDetectType[pin] = 0x04;
 }
 
 /*Modify for BananaPro by LeMaker Team*/
-void bcm2835_gpio_clr_aren(uint8_t pin)
+void bcm2835_gpio_clr_aren(int pin)
 {
 	GpioDetectType[pin] &= 0xFB;
 }
 
 /*Modify for BananaPro by LeMaker Team*/
 // Async falling edge detect enable
-void bcm2835_gpio_afen(uint8_t pin)
+void bcm2835_gpio_afen(int pin)
 {
 	GpioDetectType[pin] = 0x08;
 }
 
 /*Modify for BananaPro by LeMaker Team*/
-void bcm2835_gpio_clr_afen(uint8_t pin)
+void bcm2835_gpio_clr_afen(int pin)
 {
 	GpioDetectType[pin] &= 0xF7;
 }
@@ -492,7 +469,7 @@ void bcm2835_gpio_pud(uint8_t pud)
 /*Modify for BananaPro by LeMaker Team*/
 // Pullup/down clock
 // Clocks the value of pud into the GPIO pin
-void bcm2835_gpio_pudclk(uint8_t pin, uint8_t on)
+void bcm2835_gpio_pudclk(int pin, uint8_t on)
 {
 	return;
 }
@@ -533,7 +510,7 @@ void delayMicrosecondsHard(unsigned int howLong)
 	tLong.tv_usec = howLong % 1000000;
 	timeradd(&tNow, &tLong, &tEnd);
 
-	while (timercmp(&tNow, &tEnd, < ))
+	while (timercmp(&tNow, &tEnd, <))
 		gettimeofday(&tNow, NULL);
 }
 
@@ -561,7 +538,7 @@ void bcm2835_delayMicroseconds(uint64_t micros)
 //
 
 // Set the state of an output
-void bcm2835_gpio_write(uint8_t pin, uint8_t on)
+void bcm2835_gpio_write(int pin, uint8_t on)
 {
 	if (on)
 		bcm2835_gpio_set(pin);
@@ -604,20 +581,17 @@ void bcm2835_gpio_write_mask(uint32_t value, uint32_t mask)
 // RPi has P1-03 and P1-05 with 1k8 pullup resistor
 
 /*Modify for BananaPro by LeMaker Team*/
-void bcm2835_gpio_set_pud(uint8_t pin, uint8_t pud)
+void bcm2835_gpio_set_pud(int pin, uint8_t pud)
 {
 	// Function selects are 10 pins per 32 bit word, 3 bits per pin
-	if (BpiPin[pin] > 0) {
-		int32_t bpipin = BpiPin[pin];
-		volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_PUL_OFFSET + (bpipin / 32) * 0x24 + ((bpipin % 32) / 16) * 0x04) >> 2);
-		uint8_t   shift = (bpipin % 16) * 2;
-		uint32_t  mask = BCM2835_GPIO_PUD_MASK << shift;
-		uint32_t  value = pud << shift;
-		//			printf("before write:0x%x.\n",bcm2835_peri_read(paddr));
-		//			printf("value = 0x%x,mask = 0x%x.\n",value,mask);
-		bcm2835_peri_set_bits(paddr, value, mask);
-		//			printf("after write:0x%x.\n",bcm2835_peri_read(paddr));
-	}
+	volatile uint32_t* paddr = sunxi_gpio + ((SUNXI_GPIO_PUL_OFFSET + (pin / 32) * 0x24 + ((pin % 32) / 16) * 0x04) >> 2);
+	uint8_t   shift = (pin % 16) * 2;
+	uint32_t  mask = BCM2835_GPIO_PUD_MASK << shift;
+	uint32_t  value = pud << shift;
+	//			printf("before write:0x%x.\n",bcm2835_peri_read(paddr));
+	//			printf("value = 0x%x,mask = 0x%x.\n",value,mask);
+	bcm2835_peri_set_bits(paddr, value, mask);
+	//			printf("after write:0x%x.\n",bcm2835_peri_read(paddr));
 }
 
 /*Modify for BananaPro by LeMaker Team*/
